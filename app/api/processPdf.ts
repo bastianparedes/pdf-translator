@@ -60,6 +60,7 @@ const GEMINI_API_KEY_ERROR =
   "La variable GEMINI_API_KEY no está configurada en el servidor.";
 const GEMINI_TRANSLATION_ERROR =
   "No se pudieron traducir los párrafos con Gemini. Comprueba GEMINI_API_KEY y vuelve a intentarlo.";
+const GOOGLE_TRANSLATION_SEPARATOR = "\n\n[[[LINGO_PARAGRAPH_SEPARATOR_7F3A9C]]]\n\n";
 
 function jsonError(message: string, status: number) {
   return Response.json({ error: message }, { status });
@@ -105,6 +106,8 @@ async function translateWithGemini(
     },
   });
 
+  console.info("Respuesta de Gemini:\n%s", response.text ?? "(sin texto)");
+
   if (!response.text?.trim()) {
     throw new Error("Gemini devolvió una respuesta vacía o inválida.");
   }
@@ -139,6 +142,33 @@ async function translateWithGemini(
   }
 
   return translatedTexts;
+}
+
+async function translateWithGoogle(
+  paragraphs: ExtractedParagraph[],
+  targetLanguage: TargetLanguage,
+): Promise<string[]> {
+  if (paragraphs.length === 0) return [];
+
+  const result = await translate(
+    paragraphs.map((paragraph) => paragraph.text).join(GOOGLE_TRANSLATION_SEPARATOR),
+    { to: targetLanguage },
+  );
+  const translations = result.text
+    .split(GOOGLE_TRANSLATION_SEPARATOR)
+    .map((text) => text.trim());
+
+  if (
+    !result.text.trim() ||
+    translations.length !== paragraphs.length ||
+    translations.some((text) => !text)
+  ) {
+    throw new Error(
+      "Google Translate no conservó los separadores de párrafo en la traducción.",
+    );
+  }
+
+  return translations;
 }
 
 function isPdfTextItem(item: unknown): item is PdfTextItem {
@@ -536,22 +566,28 @@ export async function processPdf(
           }
         }
       } else {
+        const paragraphs = pages.flatMap((page) => page.paragraphs);
+        console.log(
+          "Enviando %d párrafos a Google Translate en una sola petición.",
+          paragraphs.length,
+        );
+        const translations = await translateWithGoogle(
+          paragraphs,
+          targetLanguage,
+        );
+        let translationIndex = 0;
+
         for (const page of pages) {
           for (const [index, paragraph] of page.paragraphs.entries()) {
-            const result = await translate(paragraph.text, {
-              to: targetLanguage,
-            });
-            if (!result.text.trim()) {
-              throw new Error("Google Translate returned an empty translation.");
-            }
-            paragraph.translation = result.text;
+            paragraph.translation = translations[translationIndex];
+            translationIndex += 1;
             console.log(
               "Página %d — párrafo %d:\n  Original: %s\n  Traducción (%s): %s",
               page.pageNumber,
               index + 1,
               JSON.stringify(paragraph.text),
               getTargetLanguageName(targetLanguage),
-              JSON.stringify(result.text),
+              JSON.stringify(paragraph.translation),
             );
           }
         }
