@@ -12,7 +12,7 @@ type ExtractedPdf = {
   totalPages: number;
 };
 
-type TranslationMethod = "google" | "gemini";
+type TranslationMethod = "google" | "gemini" | "gemini-pdf";
 type UiLanguage = "es" | "en" | "fr";
 
 const UI_TEXT: Record<UiLanguage, Record<string, string>> = {
@@ -33,12 +33,17 @@ const UI_TEXT: Record<UiLanguage, Record<string, string>> = {
     googleDescription: "Traducción rápida",
     ai: "Gemini (IA)",
     aiDescription: "Traducción contextual en una sola petición",
+    aiPdf: "Gemini (PDF completo)",
+    aiPdfDescription: "Envía el documento completo para aportar contexto visual",
     processing: "Traduciendo párrafos…",
+    processingPdf: "Enviando y traduciendo el PDF…",
     translate: "Traducir PDF",
     chooseAnother: "Elegir otro archivo",
     googleNotice: "El contenido del PDF se enviará a Google Translate.",
     geminiNotice:
       "El texto del PDF se enviará a Google Gemini en una sola petición.",
+    geminiPdfNotice:
+      "El PDF completo y sus párrafos detectados se enviarán a Gemini; se solicitará borrar el archivo temporal al terminar. Los escaneos sin texto seleccionable aún requieren OCR.",
     resultTitle: "PDF traducido",
     previewPdf: "Vista previa del PDF traducido",
     downloadPdf: "Descargar PDF traducido",
@@ -88,12 +93,17 @@ const UI_TEXT: Record<UiLanguage, Record<string, string>> = {
     googleDescription: "Fast translation",
     ai: "Gemini (AI)",
     aiDescription: "Context-aware translation in one request",
+    aiPdf: "Gemini (full PDF)",
+    aiPdfDescription: "Send the complete document for visual context",
     processing: "Translating paragraphs…",
+    processingPdf: "Uploading and translating the PDF…",
     translate: "Translate PDF",
     chooseAnother: "Choose another file",
     googleNotice: "The PDF content will be sent to Google Translate.",
     geminiNotice:
       "The PDF text will be sent to Google Gemini in a single request.",
+    geminiPdfNotice:
+      "The complete PDF and its detected paragraphs will be sent to Gemini; deletion of the temporary file is requested when processing finishes. Scans without selectable text still need OCR.",
     resultTitle: "Translated PDF",
     previewPdf: "Translated PDF preview",
     downloadPdf: "Download translated PDF",
@@ -143,12 +153,17 @@ const UI_TEXT: Record<UiLanguage, Record<string, string>> = {
     googleDescription: "Traduction rapide",
     ai: "Gemini (IA)",
     aiDescription: "Traduction contextuelle en une seule requête",
+    aiPdf: "Gemini (PDF complet)",
+    aiPdfDescription: "Envoyez le document complet pour le contexte visuel",
     processing: "Traduction des paragraphes…",
+    processingPdf: "Envoi et traduction du PDF…",
     translate: "Traduire le PDF",
     chooseAnother: "Choisir un autre fichier",
     googleNotice: "Le contenu du PDF sera envoyé à Google Traduction.",
     geminiNotice:
       "Le texte du PDF sera envoyé à Google Gemini en une seule requête.",
+    geminiPdfNotice:
+      "Le PDF complet et ses paragraphes détectés seront envoyés à Gemini ; la suppression du fichier temporaire sera demandée à la fin du traitement. Les scans sans texte sélectionnable nécessitent encore un OCR.",
     resultTitle: "PDF traduit",
     previewPdf: "Aperçu du PDF traduit",
     downloadPdf: "Télécharger le PDF traduit",
@@ -352,7 +367,9 @@ export default function Home() {
       const response = await fetch(
         translationMethod === "google"
           ? "/api/extract"
-          : "/api/extract-gemini",
+          : translationMethod === "gemini-pdf"
+            ? "/api/extract-gemini-pdf"
+            : "/api/extract-gemini",
         {
           method: "POST",
           body: formData,
@@ -605,6 +622,23 @@ export default function Home() {
                   </span>
                 </span>
               </label>
+              <label
+                className={`method-option${translationMethod === "gemini-pdf" ? " method-option-selected" : ""}`}
+              >
+                <input
+                  checked={translationMethod === "gemini-pdf"}
+                  name="translation-method"
+                  onChange={() => setTranslationMethod("gemini-pdf")}
+                  type="radio"
+                  value="gemini-pdf"
+                />
+                <span className="method-option-copy">
+                  <span className="method-option-title">{text.aiPdf}</span>
+                  <span className="method-option-description">
+                    {text.aiPdfDescription}
+                  </span>
+                </span>
+              </label>
             </div>
           </fieldset>
 
@@ -618,7 +652,9 @@ export default function Home() {
               {isProcessing ? (
                 <>
                   <span aria-hidden="true" className="loading-spinner" />
-                  {text.processing}
+                  {translationMethod === "gemini-pdf"
+                    ? text.processingPdf
+                    : text.processing}
                 </>
               ) : (
                 text.translate
@@ -640,7 +676,9 @@ export default function Home() {
           <p className="privacy-note">
             {translationMethod === "google"
               ? text.googleNotice
-              : text.geminiNotice}
+              : translationMethod === "gemini-pdf"
+                ? text.geminiPdfNotice
+                : text.geminiNotice}
           </p>
 
           {extraction && (

@@ -8,8 +8,12 @@ To use the Gemini translation option, set `GEMINI_API_KEY` in `.env.local`:
 GEMINI_API_KEY=your_api_key
 ```
 
-Keep the key on the server and do not commit it. The Gemini option sends all
-extracted PDF paragraphs together in one API request.
+Keep the key on the server and do not commit it. The standard Gemini option
+sends all extracted PDF paragraphs together in one API request.
+The "Gemini (full PDF)" option uploads the complete PDF to Gemini for document
+and visual context, alongside the extracted paragraphs used to place
+translations. The backend requests deletion of the uploaded file after
+processing.
 
 ## Getting Started
 
